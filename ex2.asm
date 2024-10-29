@@ -1,39 +1,78 @@
+;Faça um programa que leia a diagonal principal de uma matriz
+;4X4 tamanho DB
+
 .MODEL SMALL
 .STACK 100H
 .DATA
-  MATRIZ DB 4 DUP(4 DUP(?))
-  PMT DB "Digite os elementos da diagonal principal da matriz",10,13,"$"
-  PCP DB "Os elemtos da matriz principal são:"
+    MATRIZ DB 4 DUP(4 DUP(?))
+    MSG1 DB "DIGITE OS ELEMENTOS DA DIAGONAL PRINCIPAL: $"
+    DIAG DB 4 DUP(30H)
 
-.code
-main proc
-    mov ax, @DATA
-    mov ds, ax
-
-    mov cx, 4
-    xor bx, bx
-    xor si, si
-
-    lea dx, PMT
-    mov ah, 9
-    int 21h
-
-    mov ah,1
-loop_leitura:
-    int 21h 
-    sub al, 30h
-
-    mov MATRIZ[bx][si], al
-
-    inc bx
-    inc si
-
-loop loop_leitura
+.CODE
 
 
-mov ah, 4CH
-int 21h
-main ENDP
-end main
+MAIN PROC
+MOV AX, @DATA
+MOV DS, AX
+
+MOV CX, 4
+XOR BX, BX
+XOR SI, SI
+
+MOV AH, 9 
+LEA DX, MSG1
+INT 21H
+
+MOV AH, 1
+
+LER: 
+INT 21H
+SUB AL, 30H
+
+MOV MATRIZ[BX][SI], AL
+
+ADD BX, 4
+INC SI
+
+LOOP LER
+
+MOV AH, 2
+MOV DL, 10 
+INT 21H
+
+IMPRIMIR_MATRIZ:
+XOR SI, SI 
+XOR BX, BX 
+
+MOV CL, 4
+MOV CH, 4
+MOV AH, 02H
+
+LINHA:
+MOV DL, MATRIZ[BX + SI]
+ADD DL, 30H
+INT 21H
+
+INC SI
+CMP SI, 4
+JE COLUNA
+JMP LINHA
+
+COLUNA:
+MOV DL, 10
+INT 21H
+
+XOR SI,SI 
+ADD BX, 4
+CMP BX, 16
+JE SAI
+JMP LINHA
+
+SAI:
+
+MOV AH, 4CH
+INT 21H
 
 
+MAIN ENDP
+END MAIN
