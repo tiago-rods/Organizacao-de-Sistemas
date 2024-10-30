@@ -1,8 +1,8 @@
-;Escreva um programa que leia todos os elementos de uma matriz 4 X 4 de números inteiros
-;entre 0 e 6, inclusive. O programa deverá ler a matriz, imprimir a matriz lida, fazer a soma dos
-;elementos, armazenar e imprimir esta soma. Usar um procedimento para ler, outro para somar
-;e outro para imprimir. Usar procedimentos e macros.
+.MODEL SMALL
+.DATA
+    MATRIZ DB 4 DUP(4 DUP(?))
 
+.STACK 100H
 ENDL MACRO
     PUSH AX
     PUSH DX
@@ -14,119 +14,136 @@ ENDL MACRO
     POP AX
     POP DX   
 ENDM
-
-PRINTC MACRO CHAR
+PULAR_LINHA MACRO
     PUSH DX
     PUSH AX
     MOV AH, 2
-    MOV DL, CHAR
-    INT 21h
+    MOV DL, 10
+    INT 21H
     POP AX
     POP DX
 ENDM
 
-.MODEL SMALL
-.STACK 100H
-.DATA
-    MATRIZ DB 4 DUP(4 DUP(?))
-    SUM DB ?
-    
-.CODE 
+PUSHALL MACRO
+    PUSH AX
+    PUSH BX
+    PUSH CX
+    PUSH DX
+    PUSH DI
+    PUSH SI
+ENDM
 
+POPALL MACRO
+    POP SI
+    POP DI
+    POP DX
+    POP CX
+    POP BX
+    POP AX
+ENDM
+
+.CODE
 MAIN PROC
     MOV AX, @DATA
     MOV DS, AX
 
+    LEA BX, MATRIZ
     CALL LER_MATRIZ
-    CALL SOMA_ELEMENTOS
+
+    CALL SOMA_MATRIZ
+
+    CALL SAIDADECIMAL
 
     MOV AH, 4CH
     INT 21H
-    
+
 MAIN ENDP
 
 LER_MATRIZ PROC
-
-    XOR BX, BX ;ZERA BX  
-    MOV CH, 4 ;CONTADOR LINHA 4
-
+    PUSHALL                                     ;guarda conteúdo dos registradores
 
     MOV AH, 1
-    LINHA:
-    MOV CL, 4 ; CONTADOR COLUNA = 4
-    XOR SI, SI ; ZERA SI AO PASSAR PARA A PROXIMA LINHA A LINHA 
-
-        COLUNA:
-        INT 21H 
-        MOV MATRIZ[BX][SI], AL; MOVE AL A POSICAO DA MATRIZ
-        SUB AL, 30H ; TRANSFORMA PARA ASCII
-
-        INC SI ; PROXIMA POSICAO
-
-        DEC CL  ;DECREMENTA CONTADOR
-        JNZ COLUNA ; ENQUANTO NAO FOR 0, CONTINUA NO LOOP
-
+    MOV DI, BX                                  ;USA BX COMO MARCADOR DA ÚLTIMA FILEIRA
+    ADD DI, 12
+    INPUT_FILEIRA:
+    XOR SI,SI                                   ;SI APONTA PARA ELEMENTO NA PRIMEIRA COLUNA
+    MOV CX, 4                                   ;LOOP RODA 4 VEZES
+    INPUT_MATRIZ:
+        INT 21H                                 ;RECEBER CARACTERE
+        AND AL, 0Fh                             ;CONVERTE CARACTERE PARA NÚMERO
+        MOV BYTE PTR [BX][SI], AL               ;COLOCA CARACTERE NA MATRIZ
+        INC SI                                  ;PRÓXIMO ELEMENTO
+        LOOP INPUT_MATRIZ
     ENDL
-    ADD BX, 4 ;PROXIMA LINHA
-
-    DEC CH ;DECREMENTA CONTADOR DE LINHA 
-    JNZ LINHA
-
+    ADD BX, SI                                  ;PROXIMA FILEIRA
+    CMP BX, DI
+    JLE INPUT_FILEIRA                           ;SE AINDA NÃO PASSOU PELA ÚLTIMA FILEIRA, VOLTAR
+    POPALL                                      ;DEVOLVE VALORES PREVIOS AOS REGISTRADORES
     RET
-
-
 LER_MATRIZ ENDP
-;==============================
-SOMA_ELEMENTOS PROC
-    XOR AX, AX              ; Zera AX para usar como acumulador
-    XOR BX, BX              ; Zera BX para índice da matriz
-    MOV CX, 4               ; Número de linhas
 
-LINHA_LOOP:
-    XOR SI, SI              ; Zera SI para o índice da coluna
-    MOV CL, 4               ; Número de colunas
-
-    COLUNA_LOOP:
-        ; Acessa cada elemento da matriz e soma
-        ADD AL, MATRIZ [BX] [SI] ; Adiciona o valor da matriz a AL
-
-        INC SI                  ; Próxima posição da coluna
-        DEC CL                  ; Decrementa contador de colunas
-        JNZ COLUNA_LOOP         ; Continua enquanto CL não for zero
-
-        ; Agora AL contém a soma total dos elementos
-        ; Se AL for maior que 10, precisamos processar os dígitos
-        CMP AL, 10
-        JL CONTINUAR           ; Se AL < 10, pula para CONTINUAR
-
-PROCESSAR_DIGITOS:
-    MOV BL, 10              ; BL é o divisor (10)
-    XOR DX, DX              ; Zera DX para divisão
-
-    ; Divide AL por 10 para extrair o dígito mais à direita
-    DIV BL                  ; AX / 10, AL = quociente, AH = resto
-    ; Aqui, AL contém o quociente (dígitos restantes), AH contém o dígito extraído
-
-    ; Se o dígito (resto) for maior que 0, faça algo com ele (ex: armazenar)
-    ; Para este exemplo, vamos apenas imprimir
-    CMP AH, 0
-    JE CONTINUAR_PROCESSAMENTO ; Se não houver dígito, pula
-
-    ; Aqui você pode armazenar ou processar o dígito
-    ADD AH, '0'            ; Converte para ASCII (se necessário)
-    PRINTC AH              ; Imprime o dígito
-
-CONTINUAR_PROCESSAMENTO:
-    MOV AL, AH             ; Move o dígito restante para AL
-    CMP AL, 0              ; Verifica se ainda há dígitos
-    JNZ PROCESSAR_DIGITOS  ; Se ainda há dígitos, continue o processamento
-
-CONTINUAR:
-    ADD BX, 4              ; Passa para a próxima linha (4 elementos a mais)
-    DEC CX                  ; Decrementa contador de linhas
-    JNZ LINHA_LOOP          ; Continua enquanto CX não for zero
-
+;REALIZA A SOMA DOS ELEMENTOS EM UMA MATRIZ 4X4
+SOMA_MATRIZ PROC
+    PUSH AX
+    PUSH CX
+    PUSH DX
+    PUSH SI
+    
+    XOR AX, AX
+    MOV DI, BX                      ;USA DI COMO MARCADOR DA ÚLTIMA FILEIRA
+    ADD DI, 12
+    SOMA_FILEIRA:
+    XOR SI,SI
+    MOV CX, 4
+    SOMAR_ELEMENTOS:                ;LOOP QUE IMPRIME OS 4 NÚMEROS EM UMA FILEIRA
+        MOV DL, [BX][SI]            ;MOVE ELEMENTO DA MATRIZ PARA O REGISTRADOR
+        XOR DH,DH
+        ADD AX, DX                  ;SOMA ELEMENTO AO REGISTRADOR AX
+        INC SI                      ;PRÓXIMO ELEMENTO
+        LOOP SOMAR_ELEMENTOS
+        ADD BX, SI                  ;PRÓXIMA FILEIRA
+        CMP BX, DI                  ;REALIZA COMPARAÇÃO ENTRE A POSIÇÃO ATUAL DE BX E A POSIÇÃO DA ÚLTIMA FILEIRA
+        JLE SOMA_FILEIRA            ;SAI DO LOOP APÓS IMPRIMIR OS NÚMEROS DA ÚLTIMA FILEIRA, QUANDO BX SERÁ 16 A MAIS QUE O VALOR INICIAL
+    MOV BX, AX
+    
+    POP SI
+    POP DX
+    POP CX
+    POP AX
     RET
-SOMA_ELEMENTOS ENDP
+SOMA_MATRIZ ENDP
 
+;IMPRIME NÚMERO DECIMAL ARMAZENADO EM BX
+;PODE IMPRIMIR NÚMEROS DE 1 ATÉ 262143
+SAIDADECIMAL PROC
+    PUSH AX
+    PUSH BX
+    PUSH CX
+    PUSH DX
+
+    MOV DI, 10
+    XOR CX, CX
+    MOV AX, BX          ;PASSA O NUMERO A SER DIVIDIDO PARA AX
+    XOR DX, DX          ;TIRA O LIXO DE DX
+    OUTPUTDECIMAL:
+        DIV DI              ;AX / DI    --> QUOCIENTE VAI PARA AX E RESTO VAI PARA DX
+        PUSH DX             ;GUARDA RESTO NA PILHA
+        XOR DX, DX          ;ZERA DX PARA PROXIMA DIIVISÃO
+        INC CX              
+        OR AX, AX           ;CONFERE SE O QUOCIENTE É 0
+        JNZ OUTPUTDECIMAL
+    
+    MOV AH, 2
+    IMPRIMIRDECIMAL:
+        POP DX              ;DESEMPILHA O RESTO E O IMPRIME
+        OR DL, 30H          ;CONVERTE PARA CARACTERE
+        INT 21H
+        LOOP IMPRIMIRDECIMAL
+
+    POP DX
+    POP CX
+    POP BX
+    POP AX
+    RET
+SAIDADECIMAL ENDP
 END MAIN
